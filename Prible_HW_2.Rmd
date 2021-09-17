@@ -7,25 +7,110 @@ output: pdf_document
 
 NOTE: worked in collaboration with Rupal Patel
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(here)
 
 df_probsolv <- readr::read_delim(here("probsolv.txt"), delim = " ")
 
 ```
-# Descriptive Statistics
+# 1. Descriptive Statistics
 
 ```{r}
 
 df_probsolv %>% 
-  select(-row) %>% 
-  summarize_all(.funs = c(mean = mean, sd = sd), na.rm = TRUE) %>% 
-  pivot_longer(cols = contains("_")) %>%
-  separate(col = name, c("name", "statistic")) %>%
-  pivot_wider(names_from = statistic, values_from = value)
+  select(condition,
+         ability4,
+         ability1,
+         mathse) %>% 
+  # filter(condition == 1) %>% 
+  summary()
 
-summary(df_probsolv)
+```
+
+# 2. Regression Equation
+
+Model: $ability_4 = \gamma_0 + \gamma_1 condition$
+
+```{r}
+
+lm(ability4 ~ condition, data = df_probsolv) %>% summary()
+
+
+library(hlm)
+
+hlm::rblimp(model = 'ability4 <- condition',
+            data = df_probsolv,
+            burn = 1000,
+            iter = 10000,
+            seed = 398721,
+            output = FALSE) 
+
+```
+# 3. Interpretation
+
+The intercept of the model (0.941) is the average $ability_4$ score of participants who were in the control condition. The slope parameter estimate (0.619) tells how much we can expect a person's $ability_4$ score to increase with application of the treatment condition. The two combined (0.941 + 0.619) is the mean score of those in the treatment condition.
+
+# 4. Full Model
+
+$ability_4 = \gamma_0 + \gamma_1 condition + \gamma_2 ability_{1\ centered} + \gamma_3 mathse_{centered}$
+
+
+```{r}
+
+center <- function(x) x - mean(x)
+
+df_probsolv <- df_probsolv %>% 
+  mutate(ab1_center = scale(ability1, scale = FALSE),
+         mathse_center = scale(mathse, scale = FALSE))
+  
+lm(ability4 ~ condition + ab1_center + mathse_center, 
+   data = df_probsolv) %>% 
+  summary()
+
+hlm::rblimp(model = 'ability4 <- condition ab1_center mathse_center',
+            data = df_probsolv,
+            burn = 1000,
+            iter = 10000,
+            seed = 398721,
+            output = FALSE) 
+
+```
+# 5. Adjusted Group Means
+NOTE: what does "adjusted" refer to here?
+
+```{r}
+
+df_probsolv %>% 
+  group_by(condition) %>% 
+  select(ability4, 
+         ability1, 
+         mathse) %>% 
+  summarize_all(.funs = c("mean" = mean))
+
+```
+
+
+# 6. Variance explained by treatment
+
+```{r}
+
+# combined model
+sum_combined <-lm(ability4 ~ condition + ab1_center + mathse_center, 
+   data = df_probsolv) %>% 
+  summary()
+
+
+# only treatment
+sum_pretest <- lm(ability4 ~ ab1_center + mathse_center, 
+   data = df_probsolv) %>% 
+  summary()
+
+sum_combined$r.squared
+sum_pretest$r.squared
+
+# additional variance explained by treatment
+sum_combined$r.squared - sum_pretest$r.squared
 
 ```
 
