@@ -1,0 +1,31 @@
+---
+title: "Homework 2"
+author: "Mac Prible (priblede)"
+date: "9/16/2021"
+output: pdf_document
+---
+
+NOTE: worked in collaboration with Rupal Patel
+
+```{r}
+library(tidyverse)
+library(here)
+
+df_probsolv <- readr::read_delim(here("probsolv.txt"), delim = " ")
+
+```
+# Descriptive Statistics
+
+```{r}
+
+df_probsolv %>% 
+  select(-row) %>% 
+  summarize_all(.funs = c(mean = mean, sd = sd), na.rm = TRUE) %>% 
+  pivot_longer(cols = contains("_")) %>%
+  separate(col = name, c("name", "statistic")) %>%
+  pivot_wider(names_from = statistic, values_from = value)
+
+summary(df_probsolv)
+
+```
+
